@@ -23,7 +23,7 @@ import html
 app = FastAPI()
 
 # serve PDFs
-PDF_DIR = "/RAG/ALL_DATA/"
+PDF_DIR = "../ALL_DATA/"
 
 #app.mount(
 #    "/pdfs/T6",
@@ -189,16 +189,16 @@ def Query_VLLM(query, model, pages, chat_history):
 
 def next_pg_exists(filename, page_num, Doc_Src):
     if Doc_Src == "T6 Docs":
-        if os.path.exists(os.path.join(f"/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T6/{filename}", f"{page_num}.md")):
+        if os.path.exists(os.path.join(f"../ALL_DATA/Docling_Parsed_PDFS/T6/{filename}", f"{page_num}.md")):
             return True
         for width in range(2, 8):  # adjust upper bound if you use very deep padding
-            if os.path.exists(os.path.join(f"/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T6/{filename}", f"{page_num:0{width}d}.md")):
+            if os.path.exists(os.path.join(f"../ALL_DATA/Docling_Parsed_PDFS/T6/{filename}", f"{page_num:0{width}d}.md")):
                 return True
     elif Doc_Src == "T7 Docs":
-        if os.path.exists(os.path.join(f"/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T7/{filename}", f"{page_num}.md")):
+        if os.path.exists(os.path.join(f"../ALL_DATA/Docling_Parsed_PDFS/T7/{filename}", f"{page_num}.md")):
             return True
         for width in range(2, 8):  # adjust upper bound if you use very deep padding
-            if os.path.exists(os.path.join(f"/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T7/{filename}", f"{page_num:0{width}d}.md")):
+            if os.path.exists(os.path.join(f"../ALL_DATA/Docling_Parsed_PDFS/T7/{filename}", f"{page_num:0{width}d}.md")):
                 return True
 
 
@@ -223,11 +223,11 @@ def Query_LLM(user_query, model, pages, Doc_Src, chat_history):
 
     if (Doc_Src == "T6 Docs"):
         for page in relevant_pages:
-            context += read_page_markdown(page[0], page[1], "/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T6")
+            context += read_page_markdown(page[0], page[1], "../ALL_DATA/Docling_Parsed_PDFS/T6")
 
     elif (Doc_Src == "T7 Docs"):
         for page in relevant_pages:
-            context += read_page_markdown(page[0], page[1], "/home/mann/RAG/ALL_DATA/Docling_Parsed_PDFS/T7")
+            context += read_page_markdown(page[0], page[1], "../ALL_DATA/Docling_Parsed_PDFS/T7")
 
     else:
         #ADD THIS LATER
@@ -278,7 +278,7 @@ async def handle_rag_request(request: Request):
         body = await request.json()
         print("Received body:", body)  # Debug what's actually being sent  
         rag_request = RagRequest(**body)
-        print("Document Src= ", rag_request.documentSource)
+        #print("Document Src= ", rag_request.documentSource)
         if (rag_request.documentSource == "t6-docs"):
             Doc_Src = "T6 Docs"
         elif (rag_request.documentSource == "t7-docs"):
@@ -321,15 +321,16 @@ async def handle_rag_request(request: Request):
             sources = "\n\n📚 Relevant Documents:\n\n"
             for page in relevant_pages:
                 if (Doc_Src == "T6 Docs"):
-                    pdf_url =  f"http://localhost:3003/pdfs/T6/{os.path.basename(page['file_name'])}#page={page['page_num']}"
+                    pdf_url =  f"http://10.192.195.31:3003/pdfs/T6/{os.path.basename(page['file_name'])}#page={page['page_num']}"
                 elif(Doc_Src == "T7 Docs"):
-                    pdf_url =  f"http://localhost:3003/pdfs/T7/{os.path.basename(page['file_name'])}#page={page['page_num']}"
+                    pdf_url =  f"http://10.192.195.31:3003/pdfs/T7/{os.path.basename(page['file_name'])}#page={page['page_num']}"
                 else:
                     # ADD THIS LATER
                     return
                 #sources += f"📄 Source File: <a href='{pdf_url}' target='_blank'>{os.path.basename(page['file_name'])}</a> 🗒️ Page Number: {page['page_num']}\n"
                 sources += f"\n\n📄 Source File: [{os.path.basename(page['file_name'])}]({pdf_url}) 🗒️ Page Number: {page['page_num']}"
             yield json.dumps({"message": {"content": sources}, "done": True}) + "\n"
+
 
         return StreamingResponse(
             generate_full_response(),

@@ -49,14 +49,29 @@ echo "Virtual environment activated: $VIRTUAL_ENV"
 echo "Python path: $(which python)"
 echo "Pip path: $(which pip)"
 
-ollama serve
-echo "OLLAMA Server started"
+# Function to handle Ctrl+C
+cleanup() {
+    echo "Stopping servers..."
+    kill $PDF_PID $BYALDI_PID
+    exit 0
+}
 
-echo "Starting PDF_Server..."
+# Trap Ctrl+C (SIGINT) and call cleanup
+trap cleanup SIGINT
+
+# Start OLLAMA server (foreground)
+ollama serve &
+OLLAMA_PID=$!
+
+echo "OLLAMA Server started with PID $OLLAMA_PID"
+
+# Start PDF_Server in background
 python PDF_Server.py &
+PDF_PID=$!
 
-echo "Starting Byaldi_RAG_Pipeline_Server..."
+# Start Byaldi_RAG_Pipeline_Server in background
 python Byaldi_RAG_Pipeline_Server.py &
+BYALDI_PID=$!
 
-# Wait for both processes to complete
+# Wait for all background processes
 wait
