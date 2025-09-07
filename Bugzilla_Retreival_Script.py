@@ -71,63 +71,32 @@ def chunk_response(response: str, chunk_size=3):
         yield json.dumps({"message": {"content": chunk}}) + "\n"
 
 
-#def Query_LLM(user_query, model, bugs, chat_history):
-#    
-#    # Retrieve relevant bug data
-#    bug_ids = []
-#    for bug in bugs:
-#        bug_ids.append(bug.metadata['bug_id'])
-#
-#    print(bug_ids)
-#    
-#    context = ""
-#    for id in bug_ids:
-#        bug_filepath = f"{BUGZ_DIR}/bug_{id}.json"
-#        if not Path(bug_filepath).exists():
-#            raise FileNotFoundError(f"No bug file found for ID {id}")
-#
-#        with open(bug_filepath, "r", encoding="utf-8") as f:
-#            contents = json.load(f)
-#        text_representation = f"""
-#            Bug ID: {contents['id']}
-#            Product: {contents['product']}
-#            Version: {contents['version']}
-#            Summary: {contents['summary']}
-#            Status: {contents['status']}
-#            Description: {contents['description']}
-#            Comments:
-#            {chr(10).join([f"- {c}" for c in contents.get('comments', [])])}
-#        """
-#        context += text_representation + "\n"
-#        print(text_representation)
-#
-#    chat_history.append({
-#        'role': 'user',
-#        'content': f'USER QUESTION: {user_query}'
-#    })
-#
-#    stream = ollama.chat(
-#        model=model,                 
-#        messages=chat_history,
-#        stream=True
-#    )
-#
-#    # Yield each chunk from the LLM
-#    for chunk in stream:
-#        content = chunk['message']['content']
-#        yield json.dumps({"message": {"content": content}, "done": False}) + "\n"
-#    
-#    print("-------(2.2)--------")
-#
-#    return 
+def Query_LLM(user_query, model, bug_ids, chat_history):
+    
+    context = ""
+    for id in bug_ids:
+        bug_filepath = f"{BUGZ_DIR}/bug_{id}.json"
+        if not Path(bug_filepath).exists():
+            raise FileNotFoundError(f"No bug file found for ID {id}")
 
-
-
-def Query_LLM(user_query, model, bugs, chat_history):
+        with open(bug_filepath, "r", encoding="utf-8") as f:
+            contents = json.load(f)
+        text_representation = f"""
+            Bug ID: {contents['id']}
+            Product: {contents['product']}
+            Version: {contents['version']}
+            Summary: {contents['summary']}
+            Status: {contents['status']}
+            Description: {contents['description']}
+            Comments:
+            {chr(10).join([f"- {c}" for c in contents.get('comments', [])])}
+        """
+        context += text_representation + "\n"
+        print(text_representation)
 
     chat_history.append({
         'role': 'user',
-        'content': f'USER QUESTION: {user_query}'
+        'content': f'USER QUESTION: {user_query} Context: {context}'
     })
 
     stream = ollama.chat(
@@ -146,9 +115,6 @@ def Query_LLM(user_query, model, bugs, chat_history):
     return 
 
 
-
-
-
 @app.post("/chat")
 async def handle_rag_request(request: Request):
     try:
@@ -163,23 +129,33 @@ async def handle_rag_request(request: Request):
 
         # Retrieve Relevant Bugs
 
-        retrieved_bugs = vectorstore.similarity_search(user_query, k=2)
+        retrieved_bugs = vectorstore.similarity_search(user_query, k=5)
         for i, bug in enumerate(retrieved_bugs, 1):
             print(f"\nResult {i}")
             print("Text:", bug.page_content[:200], "...")
             print("Metadata:", bug.metadata)
 
         print("-------(1.)--------")
-        # Whats done next is determined by which model is chosen(VLLM or regular LLM)
+
+        # Retrieve relevant bug data
+        bug_ids = []
+        for bug in retrieved_bugs:
+            bug_ids.append(bug.metadata['bug_id'])
+
+        print(bug_ids)
+
 
         async def generate_full_response():
             # Stream LLM response
-            for chunk in Query_LLM(user_query, selected_model, retrieved_bugs, chat_history):
+            for chunk in Query_LLM(user_query, selected_model, bug_ids, chat_history):
                yield chunk                
 
             print("-------(2.)--------")
 
-            sources = "\n\n📚 Relevant Documents:\n\n"
+            sources = "\n\n📚 Relevant Bugz:\n\n"
+            for id in bug_ids:
+                sources += f"\n\n📄 Source Bug: [Bugzilla Bug: Bug ID {id}](http://bugzilla.asicdesigners.com/bugs/show_bug.cgi?id={id})"
+
 
             yield json.dumps({"message": {"content": sources}, "done": True}) + "\n"
 

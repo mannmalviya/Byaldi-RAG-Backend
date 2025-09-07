@@ -12,3 +12,5 @@ __pycache__/
 
 # The Indexed data
 .byaldi/
+
+chroma_bugz_vecdb/
